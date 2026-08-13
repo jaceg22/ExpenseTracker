@@ -18,7 +18,10 @@ public class JwtTokenService
     public string GenerateToken(User user)
     {
         var jwtSection = _config.GetSection("Jwt");
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSection["Key"]!));
+        var keyMaterial = Environment.GetEnvironmentVariable("JWT_KEY")
+            ?? jwtSection["Key"]
+            ?? throw new InvalidOperationException("JWT signing key is not configured.");
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyMaterial));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new List<Claim>

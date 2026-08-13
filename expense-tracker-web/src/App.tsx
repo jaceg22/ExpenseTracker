@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { BrowserRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { api, getToken, setToken } from "./api";
+import { api, ApiError, getToken, setToken } from "./api";
 import type { AuthResponse, Group } from "./types";
 import AuthScreen from "./components/AuthScreen";
 import GroupDetail from "./components/GroupDetail";
@@ -22,6 +22,7 @@ function HomeApp() {
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [newGroupName, setNewGroupName] = useState("");
   const [creatingGroup, setCreatingGroup] = useState(false);
+  const [groupError, setGroupError] = useState<string | null>(null);
 
   const loadGroups = useCallback(async () => {
     const [g, u] = await Promise.all([api.getGroups(), api.getAllUsers()]);
@@ -75,13 +76,19 @@ function HomeApp() {
 
   async function handleCreateGroup(e: FormEvent) {
     e.preventDefault();
-    if (!newGroupName.trim()) return;
+    setGroupError(null);
+    if (!newGroupName.trim()) {
+      setGroupError("Enter a group name first.");
+      return;
+    }
     setCreatingGroup(true);
     try {
       const group = await api.createGroup(newGroupName.trim());
       setNewGroupName("");
       await loadGroups();
       setSelectedGroupId(group.id);
+    } catch (err) {
+      setGroupError(err instanceof ApiError ? err.message : "Couldn't create that group.");
     } finally {
       setCreatingGroup(false);
     }
@@ -141,6 +148,7 @@ function HomeApp() {
           )}
 
           <form onSubmit={handleCreateGroup} style={{ marginTop: 20 }}>
+            {groupError && <div className="form-error" style={{ marginBottom: 10 }}>{groupError}</div>}
             <div className="field">
               <label htmlFor="newGroup">New group</label>
               <input
