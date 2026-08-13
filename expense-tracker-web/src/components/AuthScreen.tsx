@@ -26,11 +26,7 @@ export default function AuthScreen({ onAuthenticated }: Props) {
       setToken(auth.token);
       onAuthenticated(auth);
     } catch (err) {
-      const message =
-        err instanceof ApiError
-          ? err.message
-          : "Couldn't reach the API. Is it running on localhost:5000?";
-      setError(message);
+      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }

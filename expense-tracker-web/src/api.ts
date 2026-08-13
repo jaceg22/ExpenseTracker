@@ -12,6 +12,10 @@ import type {
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
 
+export function getApiUrl() {
+  return API_URL;
+}
+
 let authToken: string | null = localStorage.getItem("et_token");
 
 export function setToken(token: string | null) {
@@ -34,7 +38,8 @@ class ApiError extends Error {
 
 async function request<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  attempt = 0
 ): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -42,23 +47,39 @@ async function request<T>(
   };
   if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
 
-  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+  try {
+    const res = await fetch(`${API_URL}${path}`, { ...options, headers });
 
-  if (!res.ok) {
-    let message = `Request failed (${res.status})`;
-    try {
-      const text = await res.text();
-      if (text) message = text;
-    } catch {
-      // ignore
+    if (!res.ok) {
+      let message = `Request failed (${res.status})`;
+      try {
+        const text = await res.text();
+        if (text) message = text;
+      } catch {
+        // ignore
+      }
+      throw new ApiError(res.status, message);
     }
-    throw new ApiError(res.status, message);
+
+    if (res.status === 204) return undefined as T;
+
+    const text = await res.text();
+    return text ? (JSON.parse(text) as T) : (undefined as T);
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+
+    // Render free tier cold starts can fail the first request — retry once.
+    if (attempt === 0) {
+      await new Promise((r) => setTimeout(r, 3000));
+      return request<T>(path, options, 1);
+    }
+
+    const detail = err instanceof Error ? err.message : "Network error";
+    throw new ApiError(
+      0,
+      `Could not reach the API at ${API_URL}. ${detail} If this is your first try in a while, wait 30 seconds and try again.`
+    );
   }
-
-  if (res.status === 204) return undefined as T;
-
-  const text = await res.text();
-  return text ? (JSON.parse(text) as T) : (undefined as T);
 }
 
 export const api = {
