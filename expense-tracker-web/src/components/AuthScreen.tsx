@@ -4,10 +4,14 @@ import type { AuthResponse } from "../types";
 
 interface Props {
   onAuthenticated: (auth: AuthResponse) => void;
+  inviteContext?: {
+    groupName: string;
+    invitedByName: string;
+  };
 }
 
-export default function AuthScreen({ onAuthenticated }: Props) {
-  const [mode, setMode] = useState<"login" | "register">("login");
+export default function AuthScreen({ onAuthenticated, inviteContext }: Props) {
+  const [mode, setMode] = useState<"login" | "register">(inviteContext ? "register" : "login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,10 +45,17 @@ export default function AuthScreen({ onAuthenticated }: Props) {
             Ledger
           </div>
           <p>
-            {mode === "login"
-              ? "Log in to see who owes who."
-              : "Create an account to start a group."}
+            {inviteContext
+              ? `Log in or create an account to join ${inviteContext.groupName}.`
+              : mode === "login"
+                ? "Log in to see who owes who."
+                : "Create an account to start a group."}
           </p>
+          {inviteContext && (
+            <p className="auth-invite-note">
+              Invited by <strong>{inviteContext.invitedByName}</strong>
+            </p>
+          )}
         </div>
 
         {error && <div className="form-error">{error}</div>}

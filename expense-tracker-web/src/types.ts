@@ -66,4 +66,5 @@ export interface InvitePreview {
   groupId: number;
   groupName: string;
   memberCount: number;
+  invitedByName: string;
 }

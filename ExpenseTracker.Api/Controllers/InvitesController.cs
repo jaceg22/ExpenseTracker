@@ -28,7 +28,10 @@ public class InvitesController : ControllerBase
         if (group is null) return NotFound("Invite link is invalid or expired.");
 
         var memberCount = await _db.GroupMembers.CountAsync(gm => gm.GroupId == group.Id);
-        return Ok(new InvitePreviewResponse(group.Id, group.Name, memberCount));
+        var creator = await _db.Users.FindAsync(group.CreatedByUserId);
+        var invitedByName = creator?.Name ?? "A group member";
+
+        return Ok(new InvitePreviewResponse(group.Id, group.Name, memberCount, invitedByName));
     }
 
     [HttpPost("{code}/join")]

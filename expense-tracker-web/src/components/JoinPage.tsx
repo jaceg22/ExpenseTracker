@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError, getToken } from "../api";
 import AuthScreen from "./AuthScreen";
@@ -12,13 +12,7 @@ export default function JoinPage() {
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loggedIn, setLoggedIn] = useState(!!getToken());
-  const autoJoinAttempted = useRef(false);
-
-  useEffect(() => {
-    if (!loggedIn || !preview || !code || autoJoinAttempted.current) return;
-    autoJoinAttempted.current = true;
-    handleJoin();
-  }, [loggedIn, preview, code]);
+  const [showJoinModal, setShowJoinModal] = useState(false);
 
   useEffect(() => {
     if (!code) {
@@ -31,6 +25,7 @@ export default function JoinPage() {
       try {
         const info = await api.previewInvite(code);
         setPreview(info);
+        if (getToken()) setShowJoinModal(true);
       } catch (err) {
         setError(err instanceof ApiError ? err.message : "This invite link is not valid.");
       } finally {
@@ -48,7 +43,6 @@ export default function JoinPage() {
       navigate("/", { replace: true, state: { selectedGroupId: group.id } });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't join that group.");
-    } finally {
       setJoining(false);
     }
   }
@@ -59,6 +53,11 @@ export default function JoinPage() {
       JSON.stringify({ id: auth.userId, name: auth.name, email: auth.email })
     );
     setLoggedIn(true);
+    setShowJoinModal(true);
+  }
+
+  function handleDecline() {
+    navigate("/", { replace: true });
   }
 
   if (loading) {
@@ -69,49 +68,67 @@ export default function JoinPage() {
     );
   }
 
-  if (!loggedIn) {
+  if (error && !preview) {
     return (
-      <div>
-        {preview && (
-          <div className="join-banner">
-            You&apos;ve been invited to join <strong>{preview.groupName}</strong>.
-          </div>
-        )}
-        <AuthScreen onAuthenticated={handleAuthenticated} />
+      <div className="auth-screen">
+        <div className="auth-card">
+          <div className="form-error">{error}</div>
+          <Link className="btn btn-ghost" to="/" style={{ width: "100%", textAlign: "center", marginTop: 12 }}>
+            Back home
+          </Link>
+        </div>
       </div>
     );
   }
 
+  if (!loggedIn) {
+    return (
+      <AuthScreen
+        onAuthenticated={handleAuthenticated}
+        inviteContext={
+          preview
+            ? { groupName: preview.groupName, invitedByName: preview.invitedByName }
+            : undefined
+        }
+      />
+    );
+  }
+
   return (
-    <div className="auth-screen">
-      <div className="auth-card">
-        <div className="auth-header">
-          <div className="brand">
-            <span className="brand-mark">$</span>
-            Ledger
-          </div>
-          {preview ? (
-            <p>
-              Join <strong>{preview.groupName}</strong> ({preview.memberCount}{" "}
-              {preview.memberCount === 1 ? "member" : "members"}).
-            </p>
-          ) : (
-            <p>Join this expense group.</p>
-          )}
-        </div>
-
-        {error && <div className="form-error">{error}</div>}
-
-        {preview ? (
-          <button className="btn btn-primary" style={{ width: "100%" }} onClick={handleJoin} disabled={joining}>
-            {joining ? "Joining…" : `Join ${preview.groupName}`}
-          </button>
-        ) : (
-          <Link className="btn btn-ghost" to="/" style={{ width: "100%", textAlign: "center" }}>
-            Back home
-          </Link>
-        )}
+    <>
+      <div className="auth-screen">
+        <p className="spinner-text">Loading…</p>
       </div>
-    </div>
+
+      {showJoinModal && preview && (
+        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="join-modal-title">
+          <div className="modal-card">
+            <h2 id="join-modal-title" className="modal-title">
+              Join {preview.groupName}?
+            </h2>
+            <p className="modal-body">
+              <strong>{preview.invitedByName}</strong> invited you to join{" "}
+              <strong>{preview.groupName}</strong>.
+              {preview.memberCount > 0 && (
+                <>
+                  {" "}
+                  ({preview.memberCount} {preview.memberCount === 1 ? "member" : "members"} already in the
+                  group.)
+                </>
+              )}
+            </p>
+            {error && <div className="form-error">{error}</div>}
+            <div className="modal-actions">
+              <button className="btn btn-ghost" type="button" onClick={handleDecline} disabled={joining}>
+                Not now
+              </button>
+              <button className="btn btn-primary" type="button" onClick={handleJoin} disabled={joining}>
+                {joining ? "Joining…" : "Join group"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
