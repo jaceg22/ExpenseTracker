@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: expense-tracker-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: JWT_KEY
+        generateValue: true
+      - key: ConnectionStrings__DefaultConnection
+        value: Data Source=/data/expensetracker.db
+    disk:
+      name: expense-tracker-data
+      mountPath: /data
+      sizeGB: 1
