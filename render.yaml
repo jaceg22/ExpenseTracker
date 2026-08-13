@@ -12,8 +12,4 @@ services:
       - key: JWT_KEY
         generateValue: true
       - key: ConnectionStrings__DefaultConnection
-        value: Data Source=/data/expensetracker.db
-    disk:
-      name: expense-tracker-data
-      mountPath: /data
-      sizeGB: 1
+        value: Data Source=expensetracker.db
